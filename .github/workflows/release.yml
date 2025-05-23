@@ -1,100 +1,34 @@
-name: Create Release
+name: Python Project Release & Sign
 
 on:
-  push:
-    tags:
-      - 'v*'
-    branches:
-      - main
+  release:
+    types: [published,edited]
 
 jobs:
-  build-and-release:
+  release_and_sign:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write # Required to create a release
-
+    name: Release And Sign
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Package the project
+        run: |
+          tar -czf source.tar.gz .
+          ls -R
+
+      - name: Create Electronic Signature
+        uses: shrink/actions-document-sign@v1
+        id: create-signature
         with:
-          python-version: '3.x' # Specify your Python version
+          file: source.tar.gz
+          label: source
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install setuptools
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-
-      - name: Install Cosign
-        uses: sigstore/cosign-installer@v3.4.0
+      - name: Upload Signature
+        uses: actions/upload-artifact@v3
         with:
-          cosign-release: 'v2.2.3'
-
-      strategy:
-        matrix:
-          python-version: [3.10, 3.11, 3.12, 3.13]
-      
-            - name: Set up Python ${{ matrix.python-version }}
-              uses: actions/setup-python@v2
-              with:
-                python-version: ${{ matrix.python-version }}
-      
-            - name: Run Python Code Audit
-              run: |
-                pip install bandit
-                bandit -r .
-
-      - name: Run Python Code Audit with Safety
-        run: |
-          pip install safety
-          safety check
-      
-      - name: Run Python Code Audit with PyLint
-        run: |
-          pip install pylint
-          pylint **/*.py
-
-      - name: Sign Release Assets
-        env:
-          COSIGN_EXPERIMENTAL: "true"
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          # Sign the automatically generated source code zip and tar.gz
-          # These files are typically available in the workspace after checkout
-          cosign sign-blob ${{ github.event.repository.name }}-${{ github.ref_name }}.zip --output-signature ${{ github.event.repository.name }}-${{ github.ref_name }}.zip.sig --output-certificate ${{ github.event.repository.name }}-${{ github.ref_name }}.zip.cert
-          cosign sign-blob ${{ github.event.repository.name }}-${{ github.ref_name }}.tar.gz --output-signature ${{ github.event.repository.name }}-${{ github.ref_name }}.tar.gz.sig --output-certificate ${{ github.event.repository.name }}-${{ github.ref_name }}.tar.gz.cert
-
-      - name: Generate Release Notes with Signature Info
-        env:
-          COSIGN_EXPERIMENTAL: "true"
-        run: |
-          echo "## Sigstore 签名信息" > release_notes.md
-          echo "" >> release_notes.md
-          echo "Release 资产已使用 Sigstore 签名。" >> release_notes.md
-          echo "" >> release_notes.md
-          echo "### 验证" >> release_notes.md
-          echo "" >> release_notes.md
-          echo "您可以使用 Cosign 验证签名。首先，安装 Cosign：" >> release_notes.md
-          echo "" >> release_notes.md
-          echo "```bash" >> release_notes.md
-          echo "curl -sL 'https://install.sigstore.dev/cosign.sh' | bash" >> release_notes.md
-          echo "```" >> release_notes.md
-          echo "" >> release_notes.md
-          echo "然后，下载 Release 资产（.zip、.tar.gz、.sig 和 .cert 文件）并运行以下命令：" >> release_notes.md
-          echo "" >> release_notes.md
-          echo "```bash" >> release_notes.md
-          # Get identity and subject from the certificate
-          IDENTITY=$(cosign verify-blob ${{ github.event.repository.name }}-${{ github.ref_name }}.zip --certificate ${{ github.event.repository.name }}-${{ github.ref_name }}.zip.cert --signature ${{ github.event.repository.name }}-${{ github.ref_name }}.zip.sig | grep 'Identity:' | sed 's/Identity: //')
-          SUBJECT=$(cosign verify-blob ${{ github.event.repository.name }}-${{ github.ref_name }}.zip --certificate ${{ github.event.repository.name }}-${{ github.event.repository.name }}.zip.cert --signature ${{ github.event.repository.name }}-${{ github.ref_name }}.zip.sig | grep 'Subject:' | sed 's/Subject: //')
-          echo "cosign verify-blob ${{ github.event.repository.name }}-${{ github.ref_name }}.zip --certificate ${{ github.event.repository.name }}-${{ github.ref_name }}.zip.cert --signature ${{ github.event.repository.name }}-${{ github.ref_name }}.zip.sig --certificate-identity '$IDENTITY' --certificate-oidc-issuer '$SUBJECT'" >> release_notes.md
-          echo "cosign verify-blob ${{ github.event.repository.name }}-${{ github.ref_name }}.tar.gz --certificate ${{ github.event.repository.name }}-${{ github.ref_name }}.tar.gz.cert --signature ${{ github.event.repository.name }}-${{ github.ref_name }}.tar.gz.sig --certificate-identity '$IDENTITY' --certificate-oidc-issuer '$SUBJECT'" >> release_notes.md
-          echo "```" >> release_notes.md
-          echo "" >> release_notes.md
-          echo "预期的身份是：\`$IDENTITY\`" >> release_notes.md
-          echo "预期的发行者是：\`$SUBJECT\`" >> release_notes.md
+          name: ${{ steps.create-signature.outputs.label }}.signature
+          path: ${{ steps.create-signature.outputs.signature }}
 
       - name: Create Release
         id: create_release
@@ -106,50 +40,23 @@ jobs:
           release_name: Release ${{ github.ref_name }}
           draft: false
           prerelease: false
-          generate_release_notes: false # Disable auto-gen to use custom body
-          body_path: release_notes.md # Use the generated markdown file
 
-      - name: Upload Signature and Certificate (zip.sig)
+      - name: Upload package to Release
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./${{ github.event.repository.name }}-${{ github.ref_name }}.zip.sig
-          asset_name: ${{ github.event.repository.name }}-${{ github.ref_name }}.zip.sig
-          asset_content_type: application/octet-stream
-      - name: Upload Signature and Certificate (zip.cert)
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./${{ github.event.repository.name }}-${{ github.ref_name }}.zip.cert
-          asset_name: ${{ github.event.repository.name }}-${{ github.ref_name }}.zip.cert
-          asset_content_type: application/octet-stream
-      - name: Upload Signature and Certificate (tar.gz.sig)
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./${{ github.event.repository.name }}-${{ github.ref_name }}.tar.gz.sig
-          asset_name: ${{ github.event.repository.name }}-${{ github.ref_name }}.tar.gz.sig
-          asset_content_type: application/octet-stream
-      - name: Upload Signature and Certificate (tar.gz.cert)
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./${{ github.event.repository.name }}-${{ github.ref_name }}.tar.gz.cert
-          asset_name: ${{ github.event.repository.name }}-${{ github.ref_name }}.tar.gz.cert
-          asset_content_type: application/octet-stream
+          asset_path: ./source.tar.gz
+          asset_name: source-${{ github.sha }}.tar.gz
+          asset_content_type: application/gzip
 
-      - name: Verify Release Assets Signatures
-        env:
-          COSIGN_EXPERIMENTAL: "true"
-        run: |
-          # Verify the signatures against the generated certificates
-          cosign verify-blob ${{ github.event.repository.name }}-${{ github.ref_name }}.zip --certificate ${{ github.event.repository.name }}-${{ github.ref_name }}.zip.cert --signature ${{ github.event.repository.name }}-${{ github.ref_name }}.zip.sig
-          cosign verify-blob ${{ github.event.repository.name }}-${{ github.ref_name }}.tar.gz --certificate ${{ github.event.repository.name }}-${{ github.ref_name }}.tar.gz.cert --signature ${{ github.event.repository.name }}-${{ github.ref_name }}.tar.gz.sig
+      - name: Sign package using gh-action-sigstore-python
+        uses: sigstore/gh-action-sigstore-python@v3.0.0
+        with:
+          inputs: ./source.tar.gz
+          release-signing-artifacts: true
+          upload-signing-artifacts: true
+          verify: true
+          verify-cert-identity: ${{ github.repository }}
+          verify-oidc-issuer: https://token.actions.githubusercontent.com

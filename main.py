@@ -8,7 +8,7 @@ from .baidu.baidu_auth import init_baidu_credentials
 from .wangzhe_handler import get_wangzhe_info
 from .handwrite_handler import get_handwritten_image
 from .beauty_img_handler import get_beauty_image_url
-from .create_astrbot_meme import erciyuan
+from .chengyu_plugin import chengyu_query
 
 @register("TreasureBag", "祁筱欣", "一个为AstrBot设计的多功能插件，包含多种实用和娱乐功能。", "1.1.3")
 class HitokotoPlugin(Star):
@@ -94,13 +94,14 @@ class HitokotoPlugin(Star):
     @filter.command_group("meme")
     def erciyuan_group(self):
         pass
-    
-    @erciyuan_group.command("rxy")
-    async def create(self, event: AstrMessageEvent):
-        """生成二次元风格的图片。"""
-        url = await erciyuan(event)
-        yield event.image_result(url)
 
+
+    @filter.command("idiom_query")
+    async def chengyu_command(self, event: AstrMessageEvent):
+        """成语查询插件"""
+        print(event.message_obj.message)
+        prompt = event.message_str.split(' ')[1]
+        yield await chengyu_query(event, prompt)
 
     @filter.command("treasurebag-help")
     async def help_command(self, event: AstrMessageEvent):
@@ -110,10 +111,12 @@ class HitokotoPlugin(Star):
         命令列表:
         1. /hitokoto - 获取一条一言
         2. /rate_beauty - 发送人像图片获取颜值评分
-        3. /kog_info [英雄名称] - 查询王者荣耀英雄资料 (例如: /kog_info 亚瑟)
-        4. /handwrite [内容] - 生成手写样式的图片 (例如: /handwrite 你好世界)
-        5. /beauty_img (或 /random_beauty, /daily_beauty, /random_beauty_image) - 获取一张随机美女图片
-        6. /treasurebag-help - 显示此帮助信息
+        3. /成语查询 [成语] - 查询成语详细信息 (例如: /成语查询 厚德载物)
+        4. /kog_info [英雄名称] - 查询王者荣耀英雄资料 (例如: /kog_info 亚瑟)
+        5. /handwrite [内容] - 生成手写样式的图片 (例如: /handwrite 你好世界)
+        6. /beauty_img (或 /random_beauty, /daily_beauty, /random_beauty_image) - 获取一张随机美女图片
+        7. /idiom_query [成语] - 查询成语详细信息 (例如: /idiom_query 厚德载物)
+        8. /treasurebag-help - 显示此帮助信息
         """
         yield event.plain_result(help_text)
 

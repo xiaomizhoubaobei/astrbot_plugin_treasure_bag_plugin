@@ -1,6 +1,5 @@
 from astrbot.api.event import AstrMessageEvent
 from astrbot.api import logger
-from astrbot.api.message_components import Image
 from urllib.parse import quote
 
 async def get_handwritten_image(event: AstrMessageEvent, text: str):
