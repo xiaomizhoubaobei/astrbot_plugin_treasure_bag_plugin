@@ -1,3 +1,4 @@
+from xxlimited import foo
 from astrbot.api.event import filter, AstrMessageEvent
 from astrbot.api.star import Context, Star, register
 from astrbot.api import logger
@@ -9,6 +10,7 @@ from .wangzhe_handler import get_wangzhe_info
 from .handwrite_handler import get_handwritten_image
 from .beauty_img_handler import get_beauty_image_url
 from .chengyu_plugin import chengyu_query
+from .sad_word_handler import get_sad_word # 保留这个导入，因为 sad_word_handler.py 将只导出这个函数
 
 @register("TreasureBag", "祁筱欣", "一个为AstrBot设计的多功能插件，包含多种实用和娱乐功能。", "1.1.3")
 class HitokotoPlugin(Star):
@@ -99,9 +101,15 @@ class HitokotoPlugin(Star):
     @filter.command("idiom_query")
     async def chengyu_command(self, event: AstrMessageEvent):
         """成语查询插件"""
-        print(event.message_obj.message)
         prompt = event.message_str.split(' ')[1]
         yield await chengyu_query(event, prompt)
+
+
+    @filter.command("sad-word", aliases=["伤感一言", "每日伤感", "伤感语录", "情感"])
+    async def sad_word_command(self, event: AstrMessageEvent):
+        """获取一条伤感语录。"""
+        async for result in get_sad_word(event):
+            yield result
 
     @filter.command("treasurebag-help")
     async def help_command(self, event: AstrMessageEvent):
@@ -116,7 +124,8 @@ class HitokotoPlugin(Star):
         5. /handwrite [内容] - 生成手写样式的图片 (例如: /handwrite 你好世界)
         6. /beauty_img (或 /random_beauty, /daily_beauty, /random_beauty_image) - 获取一张随机美女图片
         7. /idiom_query [成语] - 查询成语详细信息 (例如: /idiom_query 厚德载物)
-        8. /treasurebag-help - 显示此帮助信息
+        8. /sad-word (或 /伤感一言, /每日伤感, /伤感语录, /情感) - 获取一条伤感语录
+        9. /treasurebag-help - 显示此帮助信息
         """
         yield event.plain_result(help_text)
 

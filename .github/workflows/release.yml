@@ -1,6 +1,9 @@
 name: Python Project Release & Sign
 
 on:
+  push:
+    branches:
+      - main
   release:
     types: [published,edited]
 
