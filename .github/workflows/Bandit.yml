@@ -32,15 +32,15 @@
          uses: shundor/python-bandit-scan@ab1d87dfccc5a0ffab88be3aaac6ffe35c10d6cd 
          with: # 可选参数
            # 即使发现结果也以 0 退出
-           exit_zero: true # 可选，默认为 DEFAULT
+           # exit_zero: true # 可选，默认为 DEFAULT
            # 存储库的 Github 令牌（由 Github 自动创建）
            GITHUB_TOKEN: ${{ secrets.TOKEN }} # 获取 PR 信息需要
            # 要运行 bandit 的文件或目录
            path: # 可选，默认为 .
            # 仅报告给定严重性级别或更高级别的问题。可以是 LOW、MEDIUM 或 HIGH。默认为 UNDEFINED（所有）
-           level:  UNDEFINED
+          #  level:  UNDEFINED
            # 仅报告给定置信度级别或更高级别的问题。可以是 LOW、MEDIUM 或 HIGH。默认为 UNDEFINED（所有）
-           confidence: UNDEFINED
+          #  confidence: UNDEFINED
            # 以逗号分隔的路径列表（支持 glob 模式）以从扫描中排除（请注意，这些路径是配置文件中提供的排除路径的补充）（默认值：.svn,CVS,.bzr,.hg,.git,__pycache__,.tox,.eggs,*.egg）
            # excluded_paths: # 可选，默认为 DEFAULT
            # 以逗号分隔的要跳过的测试 ID 列表

@@ -21,6 +21,7 @@ jobs:
 
       - name: Package the project
         run: |
+          sleep 10 # Add a small delay to avoid 'file changed' error
           tar --exclude='.git' --exclude='source.tar.gz' -czf source.tar.gz .
           ls -R
 
