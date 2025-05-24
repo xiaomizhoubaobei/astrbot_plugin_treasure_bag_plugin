@@ -16,6 +16,11 @@ jobs:
     runs-on: ubuntu-latest
     name: Release And Sign
     steps:
+      - name: Extract Version
+        id: extract_version
+        run: |
+          echo "version=$(grep '^version =' pyproject.toml | sed 's/version = \"\(.*\)\"/\1/')" >> $GITHUB_ENV
+
       - name: Checkout
         uses: actions/checkout@v4
 
@@ -82,7 +87,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.TOKEN }}
         with:
-          tag_name: ${{ github.ref_name }}
+          tag_name: v${{ steps.extract_version.outputs.version }}
           release_name: Release ${{ github.ref_name }}
           body: |-
             此版本包含构建证明，您可以在附件中找到 `source.tar.gz.build.slsa` 文件。
