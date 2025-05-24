@@ -1,0 +1,52 @@
+# 此工作流使用的操作未获得 GitHub 认证。
+# 它们由第三方提供，并受单独的服务条款、隐私政策和支持文档约束。
+
+# 此工作流集成了一系列开源静态分析工具与 GitHub 代码扫描。有关文档或反馈，请访问 `https://github.com/github/ossar-action`
+name: Python Multi-Environment OSSAR Analysis
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  schedule:
+    - cron: '24 5 * * 2'
+
+permissions:
+  contents: read
+
+jobs:
+  OSSAR-Scan:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: [3.7, 3.8, 3.9, 3.10, 3.11,3.12, 3.13, 3.14]
+    runs-on: ${{ matrix.os }}
+    name: OSSAR Scan on ${{ matrix.os }} with Python ${{ matrix.python-version }}
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 设置 Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: 安装依赖项
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: 运行 OSSAR
+        uses: github/ossar-action@v1
+        id: ossar
+
+      - name: 上传 OSSAR 结果
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: ${{ steps.ossar.outputs.sarifFile }}
