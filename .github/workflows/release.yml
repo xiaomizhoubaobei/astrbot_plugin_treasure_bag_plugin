@@ -19,21 +19,29 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Package the project
+      - name: Install build
+        run: pip install build
+
+      - name: Build sdist and wheel
+        run: python -m build
+
+      - name: Find built packages
+        id: find_packages
         run: |
-          sleep 10 # Add a small delay to avoid 'file changed' error
-          tar --exclude='.git' --exclude='source.tar.gz' -czf source.tar.gz .
-          ls -R
+          SDIST_FILE=$(ls dist/*.tar.gz)
+          WHEEL_FILE=$(ls dist/*.whl)
+          echo "sdist_file=$SDIST_FILE" >> $GITHUB_OUTPUT
+          echo "wheel_file=$WHEEL_FILE" >> $GITHUB_OUTPUT
 
       - name: Attest Build Provenance
         uses: actions/attest-build-provenance@v2
         with:
-          subject-path: './source.tar.gz'
+          subject-path: '${{ steps.find_packages.outputs.sdist_file }}'
 
       - name: Generate Generic Attestation
         uses: actions/attest@v2
         with:
-          subject-path: './source.tar.gz'
+          subject-path: '${{ steps.find_packages.outputs.sdist_file }}'
           predicate-type: 'https://example.com/predicate/v1'
           predicate: '{"example":"predicate"}'
 
@@ -51,7 +59,7 @@ jobs:
       - name: Generate SBOM Attestation
         uses: actions/attest-sbom@v2
         with:
-          subject-path: './source.tar.gz'
+          subject-path: '${{ steps.find_packages.outputs.sdist_file }}'
           sbom-path: './sbom.json'
   
 
@@ -59,7 +67,7 @@ jobs:
         uses: shrink/actions-document-sign@v1
         id: create-signature
         with:
-          file: source.tar.gz
+          file: ${{ steps.find_packages.outputs.sdist_file }}
           label: source
 
       - name: Upload Signature
@@ -81,15 +89,25 @@ jobs:
           draft: false
           prerelease: false
 
-      - name: Upload package to Release
+      - name: Upload sdist package to Release
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./source.tar.gz
-          asset_name: source-${{ github.sha }}.tar.gz
+          asset_path: ${{ steps.find_packages.outputs.sdist_file }}
+          asset_name: $(basename ${{ steps.find_packages.outputs.sdist_file }})
           asset_content_type: application/gzip
+
+      - name: Upload wheel package to Release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ${{ steps.find_packages.outputs.wheel_file }}
+          asset_name: $(basename ${{ steps.find_packages.outputs.wheel_file }})
+          asset_content_type: application/zip
 
       - name: Upload build provenance to Release
         uses: actions/upload-release-asset@v1
@@ -97,14 +115,14 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./source.tar.gz.build.slsa
-          asset_name: source-${{ github.sha }}.tar.gz.build.slsa
+          asset_path: ${{ steps.find_packages.outputs.sdist_file }}.build.slsa
+          asset_name: $(basename ${{ steps.find_packages.outputs.sdist_file }}.build.slsa)
           asset_content_type: application/json
 
       - name: Sign package using gh-action-sigstore-python
         uses: sigstore/gh-action-sigstore-python@v3.0.0
         with:
-          inputs: ./source.tar.gz
+          inputs: ${{ steps.find_packages.outputs.sdist_file }}
           release-signing-artifacts: true
           upload-signing-artifacts: true
           verify: true
