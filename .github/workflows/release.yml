@@ -7,6 +7,10 @@ on:
   release:
     types: [published,edited]
 
+permissions:
+  id-token: write
+  attestations: write
+
 jobs:
   release_and_sign:
     runs-on: ubuntu-latest
@@ -17,13 +21,38 @@ jobs:
 
       - name: Package the project
         run: |
-          tar -czf source.tar.gz .
+          tar --exclude='.git' --exclude='source.tar.gz' -czf source.tar.gz .
           ls -R
 
       - name: Attest Build Provenance
         uses: actions/attest-build-provenance@v2
         with:
           subject-path: './source.tar.gz'
+
+      - name: Generate Generic Attestation
+        uses: actions/attest@v2
+        with:
+          subject-path: './source.tar.gz'
+          predicate-type: 'https://example.com/predicate/v1'
+          predicate: '{"example":"predicate"}'
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install dependencies
+        run: pip install pip-licenses
+
+      - name: Generate SBOM
+        run: pip-licenses --format=json --output-file sbom.json
+
+      - name: Generate SBOM Attestation
+        uses: actions/attest-sbom@v2
+        with:
+          subject-path: './source.tar.gz'
+          sbom-path: './sbom.json'
+  
 
       - name: Create Electronic Signature
         uses: shrink/actions-document-sign@v1
