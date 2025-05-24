@@ -65,8 +65,12 @@ jobs:
         uses: shrink/actions-document-sign@v1
         id: create-signature
         with:
-          file: ${{ steps.find_packages.outputs.sdist_file }}
-          label: source
+          destination: .signature
+          template: cute.html
+          primary: #1e7e34
+          secondary: #2f80ed
+        env:
+          GITHUB_TOKEN: ${{ secrets.TOKEN }}
 
       - name: Upload Signature
         uses: actions/upload-artifact@v4

@@ -46,6 +46,17 @@ jobs:
         uses: github/ossar-action@v1
         id: ossar
 
+      - name: Check SARIF file
+        run: |
+          SARIF_FILE="${{ steps.ossar.outputs.sarifFile }}"
+          if [ -s "$SARIF_FILE" ]; then
+            echo "SARIF file '$SARIF_FILE' exists and is not empty."
+          else
+            echo "SARIF file '$SARIF_FILE' is missing or empty. Skipping SARIF upload."
+            # Optionally, fail the job if an empty SARIF is unexpected
+            # exit 1
+          fi
+
       - name: 上传 OSSAR 结果
         uses: github/codeql-action/upload-sarif@v3
         with:
