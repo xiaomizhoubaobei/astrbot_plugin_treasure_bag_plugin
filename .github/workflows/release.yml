@@ -61,13 +61,6 @@ jobs:
       - name: Generate SBOM
         run: pip-licenses --format=json --output-file sbom.json
 
-      - name: Generate SBOM Attestation
-        uses: actions/attest-sbom@v2
-        with:
-          subject-path: '${{ steps.find_packages.outputs.sdist_file }}'
-          sbom-path: './sbom.json'
-  
-
       - name: Create Electronic Signature
         uses: shrink/actions-document-sign@v1
         id: create-signature

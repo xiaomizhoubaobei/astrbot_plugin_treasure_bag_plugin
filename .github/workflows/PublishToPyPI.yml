@@ -2,13 +2,16 @@ name: Publish Python Package to PyPI
 
 on:
   push:
-    branches:
-      - main
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
+    permissions:
+      id-token: write
     steps:
     - uses: actions/checkout@v2
 
@@ -24,12 +27,11 @@ jobs:
 
     - name: Build package
       run: |
-        python setup.py sdist bdist_wheel
+        python -m build
 
     - name: Publish package
       uses: pypa/gh-action-pypi-publish@release/v1
-      permissions:
-        id-token: write
+
       with:
         repository-url: https://upload.pypi.org/legacy/
         attestations: true
