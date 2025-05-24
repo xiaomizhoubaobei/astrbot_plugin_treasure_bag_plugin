@@ -21,7 +21,7 @@ jobs:
       matrix:
         os: [ubuntu-latest]
         python-version: [ 3.8, 3.9,3.11,3.13]
-    runs-on: ${{ matrix.os }}
+    runs-on: windows-latest
     name: OSSAR Scan on ${{ matrix.os }} with Python ${{ matrix.python-version }}
     permissions:
       contents: read

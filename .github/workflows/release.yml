@@ -85,9 +85,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.TOKEN }}
         with:
           tag_name: v${{ steps.extract_version.outputs.version }}
-          release_name: Release ${{ github.ref_name }}
+          release_name: Release v${{ steps.extract_version.outputs.version }}
           body: |-
-            此版本包含构建证明，您可以在附件中找到 `source.tar.gz.build.slsa` 文件。
           draft: false
           prerelease: false
 
@@ -111,15 +110,7 @@ jobs:
           asset_name: $(basename ${{ steps.find_packages.outputs.wheel_file }})
           asset_content_type: application/zip
 
-      - name: Upload build provenance to Release
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ${{ steps.find_packages.outputs.sdist_file }}.build.slsa
-          asset_name: $(basename ${{ steps.find_packages.outputs.sdist_file }}.build.slsa)
-          asset_content_type: application/json
+
 
       - name: Sign package using gh-action-sigstore-python
         uses: sigstore/gh-action-sigstore-python@v3.0.0
