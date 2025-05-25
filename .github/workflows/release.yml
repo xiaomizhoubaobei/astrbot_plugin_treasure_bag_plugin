@@ -4,8 +4,6 @@ on:
   push:
     branches:
       - main
-  release:
-    types: [published, edited]
 
 permissions:
   id-token: write
@@ -91,7 +89,6 @@ jobs:
         with:
           name: ${{ steps.create-signature.outputs.label }}.signature
           path: ${{ steps.create-signature.outputs.signature }}
-
       - name: Create Release
         id: create_release
         uses: actions/create-release@v1
@@ -169,13 +166,16 @@ jobs:
           key: ${{ secrets.PGP_PRIVATE_KEY }}
           passphrase: ${{ secrets.PGP_PASSPHRASE }}
 
+      - name: Save OpenPGP Signature to file
+        run: echo "${{ steps.sign_packages.outputs.encrypted-text }}" > packages.gpg
+
       - name: Upload OpenPGP Signature to Release
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ${{ steps.sign_packages.outputs.encrypted-text }}
+          asset_path: packages.gpg
           asset_name: packages.gpg
           asset_content_type: application/pgp-signature
 
