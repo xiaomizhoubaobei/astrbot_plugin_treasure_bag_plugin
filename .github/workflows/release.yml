@@ -119,5 +119,5 @@ jobs:
           release-signing-artifacts: true
           upload-signing-artifacts: true
           verify: true
-          verify-cert-identity: ${{ github.repository }}
+          verify-cert-identity: https://github.com/${{ github.repository }}/.github/workflows/${{ github.workflow }}@${{ github.ref }}
           verify-oidc-issuer: https://token.actions.githubusercontent.com
