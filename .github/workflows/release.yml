@@ -5,7 +5,7 @@ on:
     branches:
       - main
   release:
-    types: [published,edited]
+    types: [published, edited]
 
 permissions:
   id-token: write
@@ -41,7 +41,7 @@ jobs:
       - name: Zip Hash File
         run: zip hashes.zip SHA256SUMS
 
-      - name: 提取版本号
+      - name: Extract Version
         id: extract_version
         run: |
           filename=$(ls dist/astrbot_plugin_treasure_bag_plugin-*.whl)
@@ -81,8 +81,8 @@ jobs:
         with:
           destination: .signature
           template: cute.html
-          primary: #1e7e34
-          secondary: #2f80ed
+          primary: '#1e7e34'
+          secondary: '#2f80ed'
         env:
           GITHUB_TOKEN: ${{ secrets.TOKEN }}
 
@@ -97,7 +97,7 @@ jobs:
         uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.TOKEN }}
-     with:
+        with:
           tag_name: v${{ env.version }}
           name: Release v${{ env.version }}
           body: |
@@ -105,7 +105,7 @@ jobs:
 
             这是我们新版本${{ env.version }}的发布说明。本次发布包含了以下更改：
 
-            ${{ github.event.head_commit.message }}！
+            ${{ github.event.head_commit.message }}
           draft: false
           prerelease: false
 
