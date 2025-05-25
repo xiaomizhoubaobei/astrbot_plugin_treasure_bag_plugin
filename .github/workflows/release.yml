@@ -16,11 +16,6 @@ jobs:
     runs-on: ubuntu-latest
     name: Release And Sign
     steps:
-      - name: Extract Version
-        id: extract_version
-        run: |
-          echo "version=$(grep '^version =' pyproject.toml | sed 's/version = \"\(.*\)\"/\1/')" >> $GITHUB_ENV
-
       - name: Checkout
         uses: actions/checkout@v4
 
@@ -37,6 +32,21 @@ jobs:
           WHEEL_FILE=$(ls dist/*.whl)
           echo "sdist_file=$SDIST_FILE" >> $GITHUB_OUTPUT
           echo "wheel_file=$WHEEL_FILE" >> $GITHUB_OUTPUT
+
+      - name: Generate SHA256 Hashes
+        run: |
+          sha256sum ${{ steps.find_packages.outputs.sdist_file }} > SHA256SUMS
+          sha256sum ${{ steps.find_packages.outputs.wheel_file }} >> SHA256SUMS
+
+      - name: Zip Hash File
+        run: zip hashes.zip SHA256SUMS
+
+      - name: 提取版本号
+        id: extract_version
+        run: |
+          filename=$(ls dist/astrbot_plugin_treasure_bag_plugin-*.whl)
+          version=$(echo $filename | sed -e 's/.*-\([0-9]*\.[0-9]*\.[0-9]*\)-py3-none-any\.whl/\1/')
+          echo "version=$version" >> $GITHUB_ENV
 
       - name: Attest Build Provenance
         uses: actions/attest-build-provenance@v2
@@ -58,8 +68,12 @@ jobs:
       - name: Install dependencies
         run: pip install pip-licenses
 
-      - name: Generate SBOM
-        run: pip-licenses --format=json --output-file sbom.json
+      - name: Generate Python SBOM
+        uses: CycloneDX/gh-python-generate-sbom@v2
+        with:
+          input: ./requirements.txt
+          output: ./sbom.json
+          format: json
 
       - name: Create Electronic Signature
         uses: shrink/actions-document-sign@v1
@@ -83,10 +97,15 @@ jobs:
         uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.TOKEN }}
-        with:
-          tag_name: v${{ steps.extract_version.outputs.version }}
-          release_name: Release v${{ steps.extract_version.outputs.version }}
-          body: |-
+     with:
+          tag_name: v${{ env.version }}
+          name: Release v${{ env.version }}
+          body: |
+            🎉 发布新版本${{ env.version }} 🎉
+
+            这是我们新版本${{ env.version }}的发布说明。本次发布包含了以下更改：
+
+            ${{ github.event.head_commit.message }}！
           draft: false
           prerelease: false
 
@@ -110,7 +129,55 @@ jobs:
           asset_name: $(basename ${{ steps.find_packages.outputs.wheel_file }})
           asset_content_type: application/zip
 
+      - name: Upload Signature to Release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ${{ steps.create-signature.outputs.signature }}
+          asset_name: ${{ steps.create-signature.outputs.label }}.signature
+          asset_content_type: application/octet-stream
 
+      - name: Upload SBOM to Release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: sbom.json
+          asset_name: sbom.json
+          asset_content_type: application/json
+
+      - name: Upload Hashes to Release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: hashes.zip
+          asset_name: hashes.zip
+          asset_content_type: application/zip
+
+      - name: Sign packages with OpenPGP
+        uses: oplik0/openpgp-action@v3
+        id: sign_packages
+        with:
+          text: |
+            ${{ steps.find_packages.outputs.sdist_file }}
+            ${{ steps.find_packages.outputs.wheel_file }}
+          key: ${{ secrets.PGP_PRIVATE_KEY }}
+          passphrase: ${{ secrets.PGP_PASSPHRASE }}
+
+      - name: Upload OpenPGP Signature to Release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ${{ steps.sign_packages.outputs.encrypted-text }}
+          asset_name: packages.gpg
+          asset_content_type: application/pgp-signature
 
       - name: Sign package using gh-action-sigstore-python
         uses: sigstore/gh-action-sigstore-python@v3.0.0
